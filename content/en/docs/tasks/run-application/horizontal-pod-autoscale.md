@@ -7,7 +7,7 @@ title: Horizontal Pod Autoscaler
 feature:
   title: Horizontal scaling
   description: >
-    Scale your application up and down with a simple command, with a UI, or automatically based on CPU usage.
+    Scale your application out and in with a simple command, with a UI, or automatically based on CPU usage.
 
 content_type: concept
 weight: 90
@@ -135,13 +135,13 @@ calculated using the remaining pods not set aside or discarded from above.
 
 If there were any missing metrics, we recompute the average more
 conservatively, assuming those pods were consuming 100% of the desired
-value in case of a scale down, and 0% in case of a scale up.  This dampens
+value in case of a scale in, and 0% in case of a scale out.  This dampens
 the magnitude of any potential scale.
 
 Furthermore, if any not-yet-ready pods were present, and we would have
-scaled up without factoring in missing metrics or not-yet-ready pods, we
+scaled out without factoring in missing metrics or not-yet-ready pods, we
 conservatively assume the not-yet-ready pods are consuming 0% of the
-desired metric, further dampening the magnitude of a scale up.
+desired metric, further dampening the magnitude of a scale out.
 
 After factoring in the not-yet-ready pods and missing metrics, we
 recalculate the usage ratio.  If the new ratio reverses the scale
@@ -157,7 +157,7 @@ If multiple metrics are specified in a HorizontalPodAutoscaler, this
 calculation is done for each metric, and then the largest of the desired
 replica counts is chosen. If any of these metrics cannot be converted
 into a desired replica count (e.g. due to an error fetching the metrics
-from the metrics APIs) and a scale down is suggested by the metrics which
+from the metrics APIs) and a scale in is suggested by the metrics which
 can be fetched, scaling is skipped. This means that the HPA is still capable
 of scaling up if one or more metrics give a `desiredReplicas` greater than
 the current value.
@@ -165,7 +165,7 @@ the current value.
 Finally, just before HPA scales the target, the scale recommendation is recorded.  The
 controller considers all recommendations within a configurable window choosing the
 highest recommendation from within that window. This value can be configured using the `--horizontal-pod-autoscaler-downscale-stabilization` flag, which defaults to 5 minutes.
-This means that scaledowns will occur gradually, smoothing out the impact of rapidly
+This means that scaleins will occur gradually, smoothing out the impact of rapidly
 fluctuating metric values.
 
 ## API Object
@@ -239,7 +239,7 @@ usual.
 Any HPA target can be scaled based on the resource usage of the pods in the scaling target.
 When defining the pod specification the resource requests like `cpu` and `memory` should
 be specified. This is used to determine the resource utilization and used by the HPA controller
-to scale the target up or down. To use resource utilization based scaling specify a metric source
+to scale the target out or in. To use resource utilization based scaling specify a metric source
 like this:
 
 ```yaml
@@ -358,7 +358,7 @@ and [the walkthrough for using external metrics](/docs/tasks/run-application/hor
 Starting from
 [v1.18](https://github.com/kubernetes/enhancements/blob/master/keps/sig-autoscaling/20190307-configurable-scale-velocity-for-hpa.md)
 the `v2beta2` API allows scaling behavior to be configured through the HPA
-`behavior` field. Behaviors are specified separately for scaling up and down in
+`behavior` field. Behaviors are specified separately for scaling out and in, in
 `scaleUp` or `scaleDown` section under the `behavior` field. A stabilization
 window can be specified for both directions which prevents the flapping of the
 number of the replicas in the scaling target. Similarly specifying scaling
@@ -369,7 +369,7 @@ policies controls the rate of change of replicas while scaling.
 One or more scaling policies can be specified in the `behavior` section of the spec.
 When multiple policies are specified the policy which allows the highest amount of
 change is the policy which is selected by default. The following example shows this behavior
-while scaling down:
+while scaling in:
 
 ```yaml
 behavior:
@@ -383,17 +383,17 @@ behavior:
       periodSeconds: 60
 ```
 
-When the number of pods is more than 40 the second policy will be used for scaling down.
-For instance if there are 80 replicas and the target has to be scaled down to 10 replicas
+When the number of pods is more than 40 the second policy will be used for scaling in.
+For instance if there are 80 replicas and the target has to be scaled in to 10 replicas
 then during the first step 8 replicas will be reduced. In the next iteration when the number
 of replicas is 72, 10% of the pods is 7.2 but the number is rounded up to 8. On each loop of
-the autoscaler controller the number of pods to be change is re-calculated based on the number
+the autoscaler controller the number of pods to be changed is re-calculated based on the number
 of current replicas. When the number of replicas falls below 40 the first policy _(Pods)_ is applied
 and 4 replicas will be reduced at a time.
 
 `periodSeconds` indicates the length of time in the past for which the policy must hold true.
-The first policy allows at most 4 replicas to be scaled down in one minute. The second policy
-allows at most 10% of the current replicas to be scaled down in one minute.
+The first policy allows at most 4 replicas to be scaled in, in one minute. The second policy
+allows at most 10% of the current replicas to be scaled in, in one minute.
 
 The policy selection can be changed by specifying the `selectPolicy` field for a scaling
 direction. By setting the value to `Min` which would select the policy which allows the
@@ -412,7 +412,7 @@ scaleDown:
   stabilizationWindowSeconds: 300
 ```
 
-When the metrics indicate that the target should be scaled down the algorithm looks
+When the metrics indicate that the target should be scaled in the algorithm looks
 into previously computed desired states and uses the highest value from the specified
 interval. In above example all desired states from the past 5 minutes will be considered.
 
@@ -441,11 +441,11 @@ behavior:
       periodSeconds: 15
     selectPolicy: Max
 ```
-For scaling down the stabilization window is _300_ seconds(or the value of the
+For scaling down (in), the stabilization window is _300_ seconds(or the value of the
 `--horizontal-pod-autoscaler-downscale-stabilization` flag if provided). There is only a single policy
-for scaling down which allows a 100% of the currently running replicas to be removed which
-means the scaling target can be scaled down to the minimum allowed replicas.
-For scaling up there is no stabilization window. When the metrics indicate that the target should be
+for scaling down (in) which allows a 100% of the currently running replicas to be removed which
+means the scaling target can be scaled in to the minimum allowed replicas.
+For scaling up (out) there is no stabilization window. When the metrics indicate that the target should be
 scaled up the target is scaled up immediately. There are 2 policies where 4 pods or a 100% of the currently
 running replicas will be added every 15 seconds till the HPA reaches its steady state.
 
